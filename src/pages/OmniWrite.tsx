@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,30 @@ import {
   Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import GSAPAnimations from "@/components/GSAPAnimations";
+import MagneticButton from "@/components/MagneticButton";
+import { gsap } from "gsap";
 
 const OmniWrite = () => {
   const [content, setContent] = useState("");
   const { toast } = useToast();
+
+  useEffect(() => {
+    const tl = gsap.timeline();
+    
+    tl.fromTo(".omniwrite-header", 
+      { opacity: 0, y: 30 },
+      { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }
+    )
+    .fromTo(".editor-card", 
+      { opacity: 0, x: -50 },
+      { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" }, "-=0.4"
+    )
+    .fromTo(".suggestions-panel", 
+      { opacity: 0, x: 50 },
+      { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" }, "-=0.4"
+    );
+  }, []);
 
   const suggestions = [
     "Make it more professional",
@@ -34,11 +54,7 @@ const OmniWrite = () => {
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <div className="omniwrite-header">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-4xl font-bold mb-2">OmniWrite</h1>
@@ -47,39 +63,42 @@ const OmniWrite = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="icon" onClick={handleSave}>
+            <MagneticButton variant="outline" size="icon" onClick={handleSave}>
               <Save className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="icon">
+            </MagneticButton>
+            <MagneticButton variant="outline" size="icon">
               <Download className="w-4 h-4" />
-            </Button>
+            </MagneticButton>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Editor */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="lg:col-span-2"
-        >
-          <Card className="glass p-6">
+        <div className="lg:col-span-2">
+          <Card className="editor-card glass p-6">
             {/* Toolbar */}
             <div className="flex items-center gap-2 pb-4 mb-4 border-b border-border/30">
-              <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                <Bold className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                <Italic className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                <List className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                <Type className="w-4 h-4" />
-              </Button>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
+                  <Bold className="w-4 h-4" />
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
+                  <Italic className="w-4 h-4" />
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
+                  <List className="w-4 h-4" />
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
+                  <Type className="w-4 h-4" />
+                </Button>
+              </motion.div>
             </div>
 
             {/* Text Area */}
@@ -96,15 +115,10 @@ const OmniWrite = () => {
               <span>Last saved: Just now</span>
             </div>
           </Card>
-        </motion.div>
+        </div>
 
         {/* Suggestions Panel */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="space-y-6"
-        >
+        <div className="suggestions-panel space-y-6">
           {/* AI Suggestions */}
           <Card className="glass p-6">
             <div className="flex items-center gap-2 mb-4">
@@ -113,13 +127,21 @@ const OmniWrite = () => {
             </div>
             <div className="space-y-2">
               {suggestions.map((suggestion, index) => (
-                <Button
+                <motion.div
                   key={index}
-                  variant="outline"
-                  className="w-full justify-start text-left border-border/50 hover:bg-primary/10 hover:border-primary/50"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                  whileHover={{ x: 5, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  {suggestion}
-                </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left border-border/50 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300"
+                  >
+                    {suggestion}
+                  </Button>
+                </motion.div>
               ))}
             </div>
           </Card>
@@ -128,30 +150,42 @@ const OmniWrite = () => {
           <Card className="glass p-6">
             <h3 className="font-bold mb-4">Quick Actions</h3>
             <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start border-border/50 hover:bg-primary/10"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Summarize
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start border-border/50 hover:bg-primary/10"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Enhance
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start border-border/50 hover:bg-primary/10"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Format
-              </Button>
+              <motion.div whileHover={{ x: 5, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start border-border/50 hover:bg-primary/10 group"
+                >
+                  <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+                    <Sparkles className="w-4 h-4 mr-2 group-hover:animate-pulse-glow" />
+                  </motion.div>
+                  Summarize
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ x: 5, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start border-border/50 hover:bg-primary/10 group"
+                >
+                  <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+                    <Sparkles className="w-4 h-4 mr-2 group-hover:animate-pulse-glow" />
+                  </motion.div>
+                  Enhance
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ x: 5, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start border-border/50 hover:bg-primary/10 group"
+                >
+                  <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
+                    <Sparkles className="w-4 h-4 mr-2 group-hover:animate-pulse-glow" />
+                  </motion.div>
+                  Format
+                </Button>
+              </motion.div>
             </div>
           </Card>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
