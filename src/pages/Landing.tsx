@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Pen, Palette, Wand2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ParticleBackground from "@/components/ParticleBackground";
+import { BouncingBalls } from "@/components/ui/bouncing-balls";
 import GSAPAnimations from "@/components/GSAPAnimations";
 import MagneticButton from "@/components/MagneticButton";
 import { useEffect, useRef } from "react";
@@ -73,6 +74,20 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden relative">
+      {/* Interactive Background */}
+      <div className="fixed inset-0 z-0">
+        <BouncingBalls
+          numBalls={80}
+          colors={['#00B4D8', '#9D4EDD', '#06FFA5', '#FFB700']}
+          opacity={0.6}
+          minRadius={1}
+          maxRadius={3}
+          speed={0.3}
+          interactive={true}
+          followMouse={false}
+          trailAlpha={0.95}
+        />
+      </div>
       <ParticleBackground />
       {/* Navbar */}
       <motion.nav
@@ -111,11 +126,10 @@ const Landing = () => {
       {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center px-6 pt-20">
         {/* Animated Background */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="parallax-bg absolute top-20 left-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-float" />
-          <div className="parallax-bg absolute bottom-20 right-10 w-96 h-96 bg-secondary/10 rounded-full blur-3xl animate-float" style={{ animationDelay: "1s" }} />
-          <div className="parallax-bg absolute top-1/2 left-1/2 w-64 h-64 bg-primary/5 rounded-full blur-2xl animate-rotate-slow" />
-          <div className="parallax-bg absolute top-10 right-1/4 w-32 h-32 bg-secondary/20 rounded-full blur-xl animate-float" style={{ animationDelay: "2s" }} />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="parallax-bg absolute top-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-float" />
+          <div className="parallax-bg absolute bottom-20 right-10 w-96 h-96 bg-secondary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: "1s" }} />
+          <div className="parallax-bg absolute top-1/2 left-1/2 w-64 h-64 bg-primary/3 rounded-full blur-2xl animate-rotate-slow" />
         </div>
 
         <div className="relative z-10 text-center max-w-5xl">
