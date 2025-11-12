@@ -1,192 +1,384 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Sparkles,
-  Type,
-  Bold,
-  Italic,
-  List,
-  Save,
-  Download,
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import GSAPAnimations from "@/components/GSAPAnimations";
-import MagneticButton from "@/components/MagneticButton";
-import { gsap } from "gsap";
+import React, { useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
+import { useRichEditor } from '@/hooks/useRichEditor';
+import RichTextEditor from '@/components/write/RichTextEditor';
+import WritingToolbar from '@/components/write/WritingToolbar';
+import WritingAssistant from '@/components/write/WritingAssistant';
+import DocumentOutline from '@/components/write/DocumentOutline';
+import TemplateLibrary from '@/components/write/TemplateLibrary';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { 
+  PanelLeftOpen, PanelLeftClose, PanelRightOpen, PanelRightClose,
+  Save, Clock, Wifi, WifiOff, Users, Command, FileText,
+  Download, Upload, Settings, Sparkles
+} from 'lucide-react';
 
 const OmniWrite = () => {
-  const [content, setContent] = useState("");
   const { toast } = useToast();
+  const [showOutline, setShowOutline] = useState(true);
+  const [showAssistant, setShowAssistant] = useState(true);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState(false);
+
+  const {
+    editor,
+    initializeEditor,
+    isConnected,
+    collaborators,
+    currentTone,
+    setCurrentTone,
+    tones,
+    documentHistory,
+    comments,
+    wordCount,
+    readabilityScore,
+    seoScore,
+    isAutoSaving,
+    lastSaved,
+    summarizeText,
+    expandText,
+    rephraseText,
+    generateOutline,
+    addComment,
+    exportDocument
+  } = useRichEditor();
 
   useEffect(() => {
-    const tl = gsap.timeline();
+    const editorInstance = initializeEditor();
     
-    tl.fromTo(".omniwrite-header", 
-      { opacity: 0, y: 30 },
-      { opacity: 1, y: 0, duration: 0.8, ease: "power2.out" }
-    )
-    .fromTo(".editor-card", 
-      { opacity: 0, x: -50 },
-      { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" }, "-=0.4"
-    )
-    .fromTo(".suggestions-panel", 
-      { opacity: 0, x: 50 },
-      { opacity: 1, x: 0, duration: 0.6, ease: "power2.out" }, "-=0.4"
-    );
-  }, []);
+    // Ensure editor is focused after initialization
+    setTimeout(() => {
+      if (editorInstance) {
+        editorInstance.commands.focus();
+      }
+    }, 100);
+    
+    return () => {
+      if (editorInstance) {
+        editorInstance.destroy();
+      }
+    };
+  }, [initializeEditor]);
 
-  const suggestions = [
-    "Make it more professional",
-    "Add bullet points",
-    "Simplify language",
-    "Expand this section",
-  ];
+  const handleSave = useCallback(() => {
+    if (editor) {
+      const content = editor.getHTML();
+      localStorage.setItem('omniwrite-document', content);
+      toast({
+        title: "Document saved",
+        description: "Your work has been saved locally",
+      });
+    }
+  }, [editor, toast]);
 
-  const handleSave = () => {
+  const handleExport = useCallback(() => {
+    exportDocument('html');
     toast({
-      title: "Document saved",
-      description: "Your work has been saved successfully.",
+      title: "Document exported",
+      description: "Your document has been downloaded",
     });
+  }, [exportDocument, toast]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      setIsCommandPaletteOpen(true);
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleSave();
+    }
+  }, [handleSave]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  const outline = generateOutline();
+
+  const handleOutlineItemClick = (item: any) => {
+    if (editor) {
+      // Find and scroll to the heading
+      const headings = editor.view.dom.querySelectorAll('h1, h2, h3, h4, h5, h6');
+      const targetHeading = Array.from(headings).find(h => h.textContent === item.text);
+      if (targetHeading) {
+        targetHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="omniwrite-header">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">OmniWrite</h1>
-            <p className="text-muted-foreground">
-              Intelligent writing assistant with real-time suggestions
-            </p>
+    <div className="h-screen flex flex-col bg-gradient-to-br from-background via-background/95 to-background/90 overflow-hidden">
+      {/* Top Bar */}
+      <motion.div
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="h-16 glass border-b border-glass-border/50 flex items-center justify-between px-6 relative z-50"
+      >
+        {/* Left - Branding & Navigation */}
+        <div className="flex items-center space-x-4">
+          <motion.h1 
+            className="text-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent"
+            whileHover={{ scale: 1.05 }}
+          >
+            OmniWrite
+          </motion.h1>
+          <Badge variant="outline" className="text-xs">
+            Intelligent Writing Assistant
+          </Badge>
+        </div>
+
+        {/* Center - Document Status */}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <FileText className="w-4 h-4" />
+            <span>{wordCount.toLocaleString()} words</span>
           </div>
-          <div className="flex gap-2">
-            <MagneticButton variant="outline" size="icon" onClick={handleSave}>
-              <Save className="w-4 h-4" />
-            </MagneticButton>
-            <MagneticButton variant="outline" size="icon">
-              <Download className="w-4 h-4" />
-            </MagneticButton>
+          
+          <div className="flex items-center space-x-2 text-sm">
+            {isAutoSaving ? (
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              >
+                <Save className="w-4 h-4 text-primary" />
+              </motion.div>
+            ) : (
+              <Save className="w-4 h-4 text-muted-foreground" />
+            )}
+            <span className="text-muted-foreground">
+              {lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : 'Not saved'}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {isConnected ? (
+              <Wifi className="w-4 h-4 text-green-400" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-red-400" />
+            )}
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {collaborators.length + 1} writer{collaborators.length !== 0 ? 's' : ''}
+            </span>
           </div>
         </div>
-      </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Editor */}
-        <div className="lg:col-span-2">
-          <Card className="editor-card glass p-6">
-            {/* Toolbar */}
-            <div className="flex items-center gap-2 pb-4 mb-4 border-b border-border/30">
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                  <Bold className="w-4 h-4" />
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                  <Italic className="w-4 h-4" />
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                  <List className="w-4 h-4" />
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                <Button variant="ghost" size="icon" className="hover:bg-muted/50">
-                  <Type className="w-4 h-4" />
-                </Button>
-              </motion.div>
-            </div>
+        {/* Right - Actions */}
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowOutline(!showOutline)}
+            title="Toggle Outline"
+          >
+            {showOutline ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAssistant(!showAssistant)}
+            title="Toggle Assistant"
+          >
+            {showAssistant ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+          </Button>
 
-            {/* Text Area */}
-            <Textarea
-              placeholder="Start writing your masterpiece..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="min-h-[500px] bg-transparent border-0 focus-visible:ring-0 text-lg resize-none"
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            title="Command Palette (Ctrl+K)"
+          >
+            <Command className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowTemplateLibrary(true)}
+            title="Template Library"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Templates
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+            className="bg-primary/10 border-primary/30 hover:bg-primary/20"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Toolbar */}
+      <WritingToolbar
+        editor={editor}
+        onSave={handleSave}
+        onExport={handleExport}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex relative">
+        {/* Left Outline Panel */}
+        <AnimatePresence>
+          {showOutline && (
+            <motion.div
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              className="w-80 glass border-r border-glass-border/50 p-4 overflow-y-auto"
+            >
+              <DocumentOutline
+                outline={outline}
+                onItemClick={handleOutlineItemClick}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Editor Area */}
+        <div className="flex-1 relative">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="w-full h-full"
+          >
+            <RichTextEditor
+              editor={editor}
+              className="h-full"
             />
+          </motion.div>
 
-            {/* Status Bar */}
-            <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/30 text-sm text-muted-foreground">
-              <span>{content.length} characters</span>
-              <span>Last saved: Just now</span>
+          {/* Floating Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute bottom-4 left-4 glass rounded-lg p-3 shadow-lg border border-glass-border/50"
+          >
+            <div className="flex items-center space-x-4 text-sm">
+              <div className="flex items-center space-x-1">
+                <span className="text-muted-foreground">Readability:</span>
+                <span className={`font-medium ${
+                  readabilityScore >= 80 ? 'text-green-400' : 
+                  readabilityScore >= 60 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {Math.round(readabilityScore)}%
+                </span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <span className="text-muted-foreground">SEO:</span>
+                <span className={`font-medium ${
+                  seoScore >= 80 ? 'text-green-400' : 
+                  seoScore >= 60 ? 'text-yellow-400' : 'text-red-400'
+                }`}>
+                  {seoScore}%
+                </span>
+              </div>
             </div>
-          </Card>
+          </motion.div>
         </div>
 
-        {/* Suggestions Panel */}
-        <div className="suggestions-panel space-y-6">
-          {/* AI Suggestions */}
-          <Card className="glass p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-primary" />
-              <h3 className="font-bold">AI Suggestions</h3>
-            </div>
-            <div className="space-y-2">
-              {suggestions.map((suggestion, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ x: 5, scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left border-border/50 hover:bg-primary/10 hover:border-primary/50 transition-all duration-300"
-                  >
-                    {suggestion}
-                  </Button>
-                </motion.div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card className="glass p-6">
-            <h3 className="font-bold mb-4">Quick Actions</h3>
-            <div className="space-y-2">
-              <motion.div whileHover={{ x: 5, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start border-border/50 hover:bg-primary/10 group"
-                >
-                  <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
-                    <Sparkles className="w-4 h-4 mr-2 group-hover:animate-pulse-glow" />
-                  </motion.div>
-                  Summarize
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ x: 5, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start border-border/50 hover:bg-primary/10 group"
-                >
-                  <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
-                    <Sparkles className="w-4 h-4 mr-2 group-hover:animate-pulse-glow" />
-                  </motion.div>
-                  Enhance
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ x: 5, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start border-border/50 hover:bg-primary/10 group"
-                >
-                  <motion.div whileHover={{ rotate: 360 }} transition={{ duration: 0.6 }}>
-                    <Sparkles className="w-4 h-4 mr-2 group-hover:animate-pulse-glow" />
-                  </motion.div>
-                  Format
-                </Button>
-              </motion.div>
-            </div>
-          </Card>
-        </div>
+        {/* Right Assistant Panel */}
+        <AnimatePresence>
+          {showAssistant && (
+            <WritingAssistant
+              editor={editor}
+              currentTone={currentTone}
+              tones={tones}
+              onToneChange={setCurrentTone}
+              onSummarize={summarizeText}
+              onExpand={expandText}
+              onRephrase={rephraseText}
+              wordCount={wordCount}
+              readabilityScore={readabilityScore}
+              seoScore={seoScore}
+            />
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Template Library */}
+      <AnimatePresence>
+        {showTemplateLibrary && (
+          <TemplateLibrary
+            onTemplateSelect={(template) => {
+              if (editor) {
+                editor.commands.setContent(template.content);
+                setShowTemplateLibrary(false);
+                toast({
+                  title: "Template applied",
+                  description: `${template.title} template has been loaded`,
+                });
+              }
+            }}
+            onClose={() => setShowTemplateLibrary(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Command Palette */}
+      <AnimatePresence>
+        {isCommandPaletteOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-20"
+            onClick={() => setIsCommandPaletteOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass rounded-lg p-4 w-96 max-w-[90vw]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-2 mb-4">
+                <Command className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Command Palette</h3>
+              </div>
+              
+              <div className="space-y-2">
+                {[
+                  { label: 'Save Document', shortcut: 'Ctrl+S', action: handleSave },
+                  { label: 'Export Document', shortcut: 'Ctrl+E', action: handleExport },
+                  { label: 'Open Templates', shortcut: '', action: () => setShowTemplateLibrary(true) },
+                  { label: 'Summarize Text', shortcut: '', action: summarizeText },
+                  { label: 'Toggle Outline', shortcut: '', action: () => setShowOutline(!showOutline) },
+                  { label: 'Toggle Assistant', shortcut: '', action: () => setShowAssistant(!showAssistant) }
+                ].map((command, index) => (
+                  <Button
+                    key={index}
+                    variant="ghost"
+                    className="w-full justify-between"
+                    onClick={() => {
+                      command.action();
+                      setIsCommandPaletteOpen(false);
+                    }}
+                  >
+                    <span>{command.label}</span>
+                    {command.shortcut && (
+                      <Badge variant="outline" className="text-xs">
+                        {command.shortcut}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

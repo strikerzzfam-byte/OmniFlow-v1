@@ -1,138 +1,214 @@
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Palette, Download, Share2, Monitor, Tablet, Smartphone } from "lucide-react";
+import gsap from "gsap";
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
 import { useToast } from "@/hooks/use-toast";
+import CanvasBoard from "@/components/design/CanvasBoard";
+import Toolbar from "@/components/design/Toolbar";
+import CursorPresence from "@/components/design/CursorPresence";
+import TopBar from "@/components/design/TopBar";
+import PropertiesPanel from "@/components/design/PropertiesPanel";
+import LayersPanel from "@/components/design/LayersPanel";
+import AnimationPanel from "@/components/design/AnimationPanel";
+
+interface Shape {
+  id: string;
+  type: 'rect' | 'circle' | 'text' | 'line' | 'arrow' | 'star' | 'image';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  radius?: number;
+  fill: string;
+  stroke?: string;
+  strokeWidth?: number;
+  text?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+  opacity?: number;
+  points?: number[];
+  src?: string;
+}
 
 const OmniDesign = () => {
+  const [selectedTool, setSelectedTool] = useState("select");
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState(1);
+  const [selectedShape, setSelectedShape] = useState<Shape | null>(null);
+  const [showPropertiesPanel, setShowPropertiesPanel] = useState(true);
+  const [showLayersPanel, setShowLayersPanel] = useState(true);
+  const [showAnimationPanel, setShowAnimationPanel] = useState(false);
   const { toast } = useToast();
+  
+  const ydocRef = useRef<Y.Doc | null>(null);
+  const providerRef = useRef<WebsocketProvider | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const panelsRef = useRef<HTMLDivElement>(null);
 
-  const templates = [
-    { name: "Hero Banner", category: "Marketing", color: "from-primary/30 to-primary/10" },
-    { name: "Product Card", category: "E-commerce", color: "from-secondary/30 to-secondary/10" },
-    { name: "Social Post", category: "Social Media", color: "from-primary/20 to-secondary/20" },
-  ];
+  useEffect(() => {
+    const ydoc = new Y.Doc();
+    const provider = new WebsocketProvider('ws://localhost:1234', 'omnidesign-room', ydoc);
+    
+    ydocRef.current = ydoc;
+    providerRef.current = provider;
 
-  const colors = [
-    { hex: "#00B4D8", name: "Primary" },
-    { hex: "#9D4EDD", name: "Secondary" },
-    { hex: "#F8F9FA", name: "Light" },
-    { hex: "#0D0D0D", name: "Dark" },
-  ];
+    provider.on('status', (event: any) => {
+      setIsConnected(event.status === 'connected');
+    });
 
-  const handleExport = () => {
+    provider.awareness.on('change', () => {
+      setConnectedUsers(provider.awareness.getStates().size);
+    });
+
+    // GSAP entrance animations
+    const tl = gsap.timeline();
+    tl.from(toolbarRef.current, { x: -100, opacity: 0, duration: 0.6, ease: "power2.out" })
+      .from(canvasRef.current, { scale: 0.9, opacity: 0, duration: 0.8, ease: "power2.out" }, "-=0.4")
+      .from(panelsRef.current, { x: 100, opacity: 0, duration: 0.6, ease: "power2.out" }, "-=0.6");
+
+    return () => {
+      provider.destroy();
+    };
+  }, []);
+
+  const handleShapeAdd = (shape: Shape) => {
+    // GSAP animation for new shape
+    gsap.from(`[data-shape-id="${shape.id}"]`, {
+      scale: 0,
+      rotation: 360,
+      duration: 0.5,
+      ease: "back.out(1.7)"
+    });
+    
     toast({
-      title: "Design exported",
-      description: "Your design has been exported successfully.",
+      title: "Shape added",
+      description: `${shape.type} added to canvas`,
     });
   };
 
+  const handleClearCanvas = () => {
+    if (ydocRef.current) {
+      // GSAP animation for clearing canvas
+      gsap.to(".canvas-shape", {
+        scale: 0,
+        opacity: 0,
+        duration: 0.3,
+        stagger: 0.05,
+        ease: "power2.in",
+        onComplete: () => {
+          const yShapes = ydocRef.current!.getArray('shapes');
+          yShapes.delete(0, yShapes.length);
+        }
+      });
+      
+      toast({
+        title: "Canvas cleared",
+        description: "All shapes have been removed",
+      });
+    }
+  };
+
+  const handleNewCanvas = () => {
+    handleClearCanvas();
+    toast({
+      title: "New canvas",
+      description: "Started with a fresh canvas",
+    });
+  };
+
+  const handleAnimationPlay = (animationType: string, shape: Shape, duration: number) => {
+    // This will be passed to CanvasBoard to handle Konva animations
+    if (canvasRef.current) {
+      const event = new CustomEvent('playAnimation', {
+        detail: { animationType, shape, duration }
+      });
+      canvasRef.current.dispatchEvent(event);
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">OmniDesign</h1>
-            <p className="text-muted-foreground">
-              Drag-and-drop design lab with instant mockups
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="icon" onClick={handleExport}>
-              <Download className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="icon">
-              <Share2 className="w-4 h-4" />
-            </Button>
-          </div>
+    <div className="h-screen flex flex-col bg-background">
+      <TopBar 
+        isConnected={isConnected}
+        connectedUsers={connectedUsers}
+        onNewCanvas={handleNewCanvas}
+      />
+      
+      <div className="flex-1 flex">
+        <div ref={toolbarRef}>
+          <Toolbar 
+            selectedTool={selectedTool}
+            onToolSelect={setSelectedTool}
+            onClearCanvas={handleClearCanvas}
+            onToggleProperties={() => setShowPropertiesPanel(!showPropertiesPanel)}
+            onToggleLayers={() => setShowLayersPanel(!showLayersPanel)}
+            onToggleAnimation={() => setShowAnimationPanel(!showAnimationPanel)}
+          />
         </div>
-      </motion.div>
-
-      <div className="grid lg:grid-cols-4 gap-6">
-        {/* Templates Sidebar */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="space-y-6"
-        >
-          <Card className="glass p-6">
-            <h3 className="font-bold mb-4">Templates</h3>
-            <div className="space-y-3">
-              {templates.map((template, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg bg-gradient-to-br ${template.color} border border-border/30 cursor-pointer hover:border-primary/50 transition-all`}
-                >
-                  <p className="font-medium mb-1">{template.name}</p>
-                  <p className="text-xs text-muted-foreground">{template.category}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="glass p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Palette className="w-5 h-5 text-primary" />
-              <h3 className="font-bold">Color Picker</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {colors.map((color, index) => (
-                <div
-                  key={index}
-                  className="aspect-square rounded-lg cursor-pointer hover:scale-105 transition-transform border border-border/30"
-                  style={{ backgroundColor: color.hex }}
-                  title={color.name}
-                />
-              ))}
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Canvas Area */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="lg:col-span-3 space-y-6"
-        >
-          {/* Device Preview Buttons */}
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="border-primary/50 bg-primary/10">
-              <Monitor className="w-4 h-4 mr-2" />
-              Desktop
-            </Button>
-            <Button variant="outline" size="sm">
-              <Tablet className="w-4 h-4 mr-2" />
-              Tablet
-            </Button>
-            <Button variant="outline" size="sm">
-              <Smartphone className="w-4 h-4 mr-2" />
-              Mobile
-            </Button>
-          </div>
-
-          {/* Canvas */}
-          <Card className="glass p-8 min-h-[600px] relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5" />
-            <div className="relative flex items-center justify-center h-full">
-              <div className="text-center space-y-4">
-                <div className="w-24 h-24 mx-auto bg-gradient-primary rounded-2xl animate-float" />
-                <p className="text-xl font-semibold text-muted-foreground">
-                  Your canvas awaits
-                </p>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Select a template from the sidebar or start from scratch to create your masterpiece
-                </p>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
+        
+        <div className="flex-1 relative" ref={canvasRef}>
+          <CanvasBoard 
+            selectedTool={selectedTool}
+            onShapeAdd={handleShapeAdd}
+            onShapeSelect={setSelectedShape}
+            selectedShape={selectedShape}
+            onAnimationPlay={handleAnimationPlay}
+            onShapeUpdate={setSelectedShape}
+          />
+        </div>
+        
+        <div ref={panelsRef} className="flex">
+          {showLayersPanel && (
+            <LayersPanel 
+              onClose={() => setShowLayersPanel(false)}
+              selectedShape={selectedShape}
+              onShapeSelect={(shape) => {
+                setSelectedShape(shape);
+                // Also select the shape on the canvas
+                if (shape) {
+                  const event = new CustomEvent('selectShape', {
+                    detail: { shapeId: shape.id }
+                  });
+                  canvasRef.current?.dispatchEvent(event);
+                }
+              }}
+            />
+          )}
+          
+          {showAnimationPanel && (
+            <AnimationPanel 
+              selectedShape={selectedShape}
+              onClose={() => setShowAnimationPanel(false)}
+              onAnimationPlay={handleAnimationPlay}
+            />
+          )}
+          
+          {showPropertiesPanel && selectedShape && (
+            <PropertiesPanel 
+              shape={selectedShape}
+              onShapeUpdate={(updatedShape) => {
+                setSelectedShape(updatedShape);
+                // Also update the shape in the canvas
+                const event = new CustomEvent('updateShape', {
+                  detail: { shape: updatedShape }
+                });
+                canvasRef.current?.dispatchEvent(event);
+              }}
+              onClose={() => setShowPropertiesPanel(false)}
+            />
+          )}
+        </div>
       </div>
+      
+      <CursorPresence 
+        ydoc={ydocRef.current}
+        provider={providerRef.current}
+      />
     </div>
   );
 };
