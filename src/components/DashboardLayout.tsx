@@ -11,10 +11,13 @@ import {
   Bell,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -31,6 +34,17 @@ const navItems = [
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/auth');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground flex">
@@ -73,6 +87,34 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 </NavLink>
               ))}
             </nav>
+
+            {/* User Profile & Logout */}
+            <div className="border-t border-border/30 pt-4 mt-4">
+              <div className="flex items-center gap-3 px-4 py-2 mb-2">
+                <Avatar className="w-8 h-8">
+                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                    {user?.displayName?.[0] || user?.email?.[0] || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {user?.displayName || 'User'}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user?.email}
+                  </p>
+                </div>
+              </div>
+              
+              <Button
+                variant="ghost"
+                onClick={handleLogout}
+                className="w-full justify-start px-4 py-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="w-4 h-4 mr-3" />
+                Sign Out
+              </Button>
+            </div>
           </motion.aside>
         )}
       </AnimatePresence>
@@ -120,7 +162,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 
               <Avatar className="border-2 border-primary/50 cursor-pointer hover:border-primary transition-colors">
                 <AvatarFallback className="bg-gradient-primary text-primary-foreground">
-                  AN
+                  {user?.displayName?.[0] || user?.email?.[0] || 'U'}
                 </AvatarFallback>
               </Avatar>
             </div>
