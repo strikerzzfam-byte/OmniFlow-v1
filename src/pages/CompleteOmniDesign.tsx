@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { useAdvancedCanvasTools } from '@/hooks/useAdvancedCanvasTools';
 
 // Components
@@ -20,11 +21,12 @@ import { Button } from '@/components/ui/button';
 import { 
   Undo, Redo, Download, Copy, ClipboardPaste, ZoomIn, ZoomOut,
   Grid3X3, Ruler, Layers, Sparkles, Zap, Bot, Users, Wifi, WifiOff,
-  Magnet, MousePointer2
+  Magnet, MousePointer2, ArrowLeft
 } from 'lucide-react';
 
 const CompleteOmniDesign = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState(1);
   const [showLayersPanel, setShowLayersPanel] = useState(true);
@@ -148,6 +150,14 @@ const CompleteOmniDesign = () => {
       >
         {/* Left - Branding */}
         <div className="flex items-center space-x-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/dashboard')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
           <motion.h1 
             className="text-xl font-bold bg-gradient-to-r from-[#00B4D8] via-[#00B4D8]/80 to-[#9D4EDD] bg-clip-text text-transparent"
             whileHover={{ scale: 1.05 }}

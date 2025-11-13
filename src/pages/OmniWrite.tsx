@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/hooks/use-toast';
 import { useRichEditor } from '@/hooks/useRichEditor';
+import { useNavigate } from 'react-router-dom';
 import RichTextEditor from '@/components/write/RichTextEditor';
 import WritingToolbar from '@/components/write/WritingToolbar';
 import WritingAssistant from '@/components/write/WritingAssistant';
@@ -13,11 +14,12 @@ import { Badge } from '@/components/ui/badge';
 import { 
   PanelLeftOpen, PanelLeftClose, PanelRightOpen, PanelRightClose,
   Save, Clock, Wifi, WifiOff, Users, Command, FileText,
-  Download, Upload, Settings, Sparkles
+  Download, Upload, Settings, Sparkles, ArrowLeft
 } from 'lucide-react';
 
 const OmniWrite = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showOutline, setShowOutline] = useState(true);
   const [showAssistant, setShowAssistant] = useState(true);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -121,6 +123,14 @@ const OmniWrite = () => {
       >
         {/* Left - Branding & Navigation */}
         <div className="flex items-center space-x-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/dashboard')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
           <motion.h1 
             className="text-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent"
             whileHover={{ scale: 1.05 }}

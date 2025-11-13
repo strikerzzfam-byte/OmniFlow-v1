@@ -114,7 +114,7 @@ const Landing = () => {
               Roadmap
             </Button>
             <Button
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/auth")}
               className="bg-primary hover:bg-primary/90 text-primary-foreground glow-primary"
             >
               Get Started <ArrowRight className="ml-2 w-4 h-4" />
@@ -148,7 +148,7 @@ const Landing = () => {
           <div className="hero-buttons flex gap-4 justify-center flex-wrap">
             <MagneticButton
               size="lg"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/auth")}
               className="bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 glow-primary"
             >
               Get Started <ArrowRight className="ml-2 w-5 h-5" />

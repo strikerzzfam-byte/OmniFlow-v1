@@ -1,198 +1,305 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Wand2, Copy, RefreshCw, Save, History } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
+import { useOmniGenerate } from '@/hooks/useOmniGenerate';
+import { useNavigate } from 'react-router-dom';
+import TypeSelector from '@/components/generate/TypeSelector';
+import PromptStudio from '@/components/generate/PromptStudio';
+import VariantPanel from '@/components/generate/VariantPanel';
+import HistoryTimeline from '@/components/generate/HistoryTimeline';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Sparkles, Command, History, Wifi, WifiOff, 
+  Users, Save, Settings, Zap, PanelLeftOpen, 
+  PanelLeftClose, Clock, ArrowLeft
+} from 'lucide-react';
 
 const OmniGenerate = () => {
-  const [input, setInput] = useState("");
-  const [output, setOutput] = useState("");
-  const [contentType, setContentType] = useState("blog");
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [showHistory, setShowHistory] = useState(false);
+  const [isConnected] = useState(true);
+  const [collaborators] = useState(2);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
-  const contentTypes = [
-    { value: "blog", label: "Blog Post", placeholder: "Write a comprehensive blog post about [topic] targeting [audience]. Include key points, examples, and actionable insights." },
-    { value: "script", label: "Video Script", placeholder: "Create a video script for [platform] about [topic]. Duration: [time]. Include hook, main content, and call-to-action." },
-    { value: "caption", label: "Social Media Caption", placeholder: "Write an engaging social media caption for [platform] about [topic]. Include relevant hashtags and emojis." },
-    { value: "email", label: "Email Marketing", placeholder: "Create a marketing email for [campaign/product]. Include subject line, body, and clear CTA." },
-    { value: "product", label: "Product Description", placeholder: "Write a compelling product description for [product name]. Highlight key features, benefits, and target audience." },
-    { value: "press", label: "Press Release", placeholder: "Draft a press release announcing [news/event]. Include headline, dateline, and company boilerplate." },
-    { value: "ad", label: "Ad Copy", placeholder: "Create ad copy for [platform/medium] promoting [product/service]. Focus on benefits and strong CTA." },
-    { value: "newsletter", label: "Newsletter", placeholder: "Write a newsletter section about [topic]. Include engaging headlines and valuable content for subscribers." },
-    { value: "landing", label: "Landing Page Copy", placeholder: "Create landing page copy for [product/service]. Include headline, benefits, features, and conversion elements." },
-    { value: "seo", label: "SEO Content", placeholder: "Write SEO-optimized content for [keyword/topic]. Include meta description, headers, and keyword integration." },
-    { value: "story", label: "Brand Story", placeholder: "Craft a compelling brand story for [company/product]. Include origin, mission, values, and unique selling proposition." },
-    { value: "case", label: "Case Study", placeholder: "Write a case study about [project/client success]. Include challenge, solution, implementation, and results." }
-  ];
+  const {
+    contentTypes,
+    selectedType,
+    setSelectedType,
+    settings,
+    setSettings,
+    variants,
+    selectedVariant,
+    setSelectedVariant,
+    isGenerating,
+    history,
+    generateContent,
+    smartActions,
+    exportContent,
+    sendToOmniWrite,
+    sendToOmniDesign
+  } = useOmniGenerate();
 
-  const history = [
-    { title: "AI SaaS Product Launch", type: "Blog Post", time: "2h ago" },
-    { title: "YouTube Tutorial Script", type: "Video Script", time: "4h ago" },
-    { title: "LinkedIn Growth Tips", type: "Social Caption", time: "1d ago" },
-    { title: "Email Campaign - Black Friday", type: "Email Marketing", time: "1d ago" },
-    { title: "Wireless Headphones Review", type: "Product Description", time: "2d ago" },
-    { title: "Company Funding News", type: "Press Release", time: "3d ago" },
-    { title: "Google Ads - Fitness App", type: "Ad Copy", time: "3d ago" },
-    { title: "Tech Weekly Newsletter", type: "Newsletter", time: "1w ago" }
-  ];
-
-  const handleGenerate = () => {
-    const contentTypeLabel = contentTypes.find(type => type.value === contentType)?.label || contentType;
-    const sampleOutputs = {
-      blog: `# ${input.split(' ').slice(0, 4).join(' ')} - Complete Guide\n\n## Introduction\nIn today's landscape, ${input.toLowerCase()} has become essential. This guide covers everything you need to know.\n\n## Key Points\n• Strategic implementation approach\n• Industry best practices\n• Measurable results and KPIs\n\n## Conclusion\nImplement these strategies consistently for optimal results.`,
-      script: `[HOOK - 0:00-0:05]\n"Ready to master ${input.toLowerCase()}?"\n\n[INTRO - 0:05-0:15]\nToday we're covering ${input.toLowerCase()} step by step.\n\n[MAIN - 0:15-2:30]\n• Foundation concepts\n• Implementation steps\n• Common pitfalls\n\n[CTA - 2:30-2:45]\nLike and subscribe for more!`,
-      caption: `🚀 Insights on ${input.toLowerCase()}!\n\n✨ Key takeaways:\n💡 Consistency is crucial\n🎯 Focus on results\n\nWhat's your experience? Comment below! 👇\n\n#Growth #Success #Tips`,
-      email: `Subject: Transform Your ${input}\n\nHi there!\n\nExciting news about ${input.toLowerCase()}:\n\n• Proven strategies\n• Real case studies\n• Actionable steps\n\n[Get Started Now]\n\nBest regards!`,
-      default: `# Generated ${contentTypeLabel}\n\nContent for: "${input}"\n\nThis AI-generated ${contentTypeLabel.toLowerCase()} includes:\n• Engaging structure\n• Relevant formatting\n• Clear call-to-action\n\nReady to use, copy, or regenerate!`
-    };
-    
-    setOutput(sampleOutputs[contentType] || sampleOutputs.default);
+  const handleSmartAction = useCallback((action: string, content: string) => {
+    const result = smartActions[action as keyof typeof smartActions](content);
     toast({
-      title: "Content generated",
-      description: `Your ${contentTypeLabel.toLowerCase()} is ready!`,
+      title: "Content updated",
+      description: `Applied ${action} transformation`,
     });
-  };
+    return result;
+  }, [smartActions, toast]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(output);
+  const handleExport = useCallback((format: string) => {
+    exportContent(format as any);
     toast({
-      title: "Copied to clipboard",
-      description: "Content has been copied successfully.",
+      title: "Export completed",
+      description: `Content exported as ${format.toUpperCase()}`,
     });
-  };
+  }, [exportContent, toast]);
+
+  const handleSendToOmniWrite = useCallback(() => {
+    sendToOmniWrite();
+    toast({
+      title: "Sent to OmniWrite",
+      description: "Content is ready for advanced editing",
+    });
+  }, [sendToOmniWrite, toast]);
+
+  const handleSendToOmniDesign = useCallback(() => {
+    sendToOmniDesign();
+    toast({
+      title: "Sent to OmniDesign",
+      description: "Ready to create visuals and graphics",
+    });
+  }, [sendToOmniDesign, toast]);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+      e.preventDefault();
+      setIsCommandPaletteOpen(true);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background/95 to-background/90 overflow-auto scrollbar-none">
+      {/* Top Bar */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="h-16 glass border-b border-glass-border/50 flex items-center justify-between px-6 relative z-50"
       >
-        <h1 className="text-4xl font-bold mb-2">OmniGenerate</h1>
-        <p className="text-muted-foreground">
-          AI-powered content generation for any format
-        </p>
+        {/* Left - Branding */}
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/dashboard')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <motion.h1 
+            className="text-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent"
+            whileHover={{ scale: 1.05 }}
+          >
+            OmniGenerate
+          </motion.h1>
+          <Badge variant="outline" className="text-xs">
+            AI Content Studio
+          </Badge>
+        </div>
+
+        {/* Center - Status */}
+        <div className="flex items-center space-x-4">
+          {selectedType && (
+            <div className="flex items-center space-x-2 text-sm">
+              <span className="text-2xl">{selectedType.icon}</span>
+              <span className="text-muted-foreground">{selectedType.name}</span>
+            </div>
+          )}
+          
+          {isGenerating && (
+            <div className="flex items-center space-x-2 text-sm text-primary">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                <Zap className="w-4 h-4" />
+              </motion.div>
+              <span>Generating...</span>
+            </div>
+          )}
+        </div>
+
+        {/* Right - Actions */}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            {isConnected ? (
+              <Wifi className="w-4 h-4 text-green-400" />
+            ) : (
+              <WifiOff className="w-4 h-4 text-red-400" />
+            )}
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {collaborators + 1} user{collaborators !== 0 ? 's' : ''}
+            </span>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowHistory(!showHistory)}
+            title="History Timeline"
+          >
+            {showHistory ? <PanelLeftClose className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            title="Command Palette (Ctrl+G)"
+          >
+            <Command className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="bg-primary/10 border-primary/30 hover:bg-primary/20"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Save
+          </Button>
+        </div>
       </motion.div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Input Section */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="lg:col-span-2 space-y-6"
-        >
-          <Card className="glass p-6">
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Content Type</label>
-                <Select value={contentType} onValueChange={setContentType}>
-                  <SelectTrigger className="bg-muted/30 border-border/50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contentTypes.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Topic & Instructions
-                </label>
-                <Textarea
-                  placeholder={contentTypes.find(type => type.value === contentType)?.placeholder || "Describe what you want to generate..."}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  className="min-h-[150px] bg-muted/30 border-border/50"
-                />
-              </div>
-
-              <Button
-                onClick={handleGenerate}
-                className="w-full bg-primary hover:bg-primary/90 glow-primary"
-                disabled={!input}
-              >
-                <Wand2 className="w-4 h-4 mr-2" />
-                Generate Content
-              </Button>
-            </div>
-          </Card>
-
-          {/* Output Section */}
-          {output && (
+      {/* Main Content */}
+      <div className="flex-1 flex relative">
+        {/* History Timeline (Collapsible) */}
+        <AnimatePresence>
+          {showHistory && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              className="w-80 glass border-r border-glass-border/50 overflow-y-auto"
             >
-              <Card className="glass p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold">Generated Content</h3>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={handleCopy}>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleGenerate}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Regenerate
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Save className="w-4 h-4 mr-2" />
-                      Save
-                    </Button>
-                  </div>
-                </div>
-                <div className="p-4 bg-muted/20 rounded-lg whitespace-pre-wrap">
-                  {output}
-                </div>
-              </Card>
+              <HistoryTimeline
+                history={history}
+                onRestore={(snapshot) => {
+                  setSettings(snapshot.settings);
+                  setVariants(snapshot.variants);
+                  setSelectedVariant(snapshot.variants[0]);
+                  toast({
+                    title: "Snapshot restored",
+                    description: "Previous generation has been restored",
+                  });
+                }}
+                onDuplicate={(snapshot) => {
+                  setSettings(snapshot.settings);
+                  toast({
+                    title: "Settings duplicated",
+                    description: "Ready to generate new variations",
+                  });
+                }}
+                onDelete={(id) => {
+                  // Remove from history
+                  toast({
+                    title: "Snapshot deleted",
+                    description: "History item has been removed",
+                  });
+                }}
+              />
             </motion.div>
           )}
-        </motion.div>
+        </AnimatePresence>
 
-        {/* History Panel */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <Card className="glass p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <History className="w-5 h-5 text-primary" />
-              <h3 className="font-bold">Recent Generations</h3>
-            </div>
-            <div className="space-y-3">
-              {history.map((item, index) => (
-                <div
-                  key={index}
-                  className="p-3 rounded-lg bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors"
-                >
-                  <p className="font-medium mb-1">{item.title}</p>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{item.type}</span>
-                    <span>{item.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </motion.div>
+        {/* Left - Type Selector */}
+        <TypeSelector
+          contentTypes={contentTypes}
+          selectedType={selectedType}
+          onTypeSelect={setSelectedType}
+        />
+
+        {/* Center - Prompt Studio */}
+        <PromptStudio
+          settings={settings}
+          onSettingsChange={setSettings}
+          onGenerate={generateContent}
+          isGenerating={isGenerating}
+        />
+
+        {/* Right - Variant Panel */}
+        <VariantPanel
+          variants={variants}
+          selectedVariant={selectedVariant}
+          onVariantSelect={setSelectedVariant}
+          onSmartAction={handleSmartAction}
+          onExport={handleExport}
+          onSendToOmniWrite={handleSendToOmniWrite}
+          onSendToOmniDesign={handleSendToOmniDesign}
+        />
       </div>
+
+      {/* Command Palette */}
+      <AnimatePresence>
+        {isCommandPaletteOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-20"
+            onClick={() => setIsCommandPaletteOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass rounded-lg p-4 w-96 max-w-[90vw]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-2 mb-4">
+                <Command className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Command Palette</h3>
+              </div>
+              
+              <div className="space-y-2">
+                {[
+                  { label: 'Generate Content', shortcut: 'Ctrl+G', action: generateContent },
+                  { label: 'Toggle History', shortcut: '', action: () => setShowHistory(!showHistory) },
+                  { label: 'Send to OmniWrite', shortcut: '', action: handleSendToOmniWrite },
+                  { label: 'Send to OmniDesign', shortcut: '', action: handleSendToOmniDesign },
+                  { label: 'Export as PDF', shortcut: '', action: () => handleExport('pdf') }
+                ].map((command, index) => (
+                  <Button
+                    key={index}
+                    variant="ghost"
+                    className="w-full justify-between"
+                    onClick={() => {
+                      command.action();
+                      setIsCommandPaletteOpen(false);
+                    }}
+                  >
+                    <span>{command.label}</span>
+                    {command.shortcut && (
+                      <Badge variant="outline" className="text-xs">
+                        {command.shortcut}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

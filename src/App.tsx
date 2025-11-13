@@ -13,11 +13,14 @@ import FixedOmniDesign from "./pages/FixedOmniDesign";
 import CompleteOmniDesign from "./pages/CompleteOmniDesign";
 import FinalOmniDesign from "./pages/FinalOmniDesign";
 import OmniGenerate from "./pages/OmniGenerate";
+import NewOmniGenerate from "./pages/OmniGenerate";
 import DashboardSettings from "./pages/DashboardSettings";
 import Roadmap from "./pages/Roadmap";
 import DashboardLayout from "./components/DashboardLayout";
 import NotFound from "./pages/NotFound";
 import PageTransition from "./components/PageTransition";
+
+import { AuthUI } from "./components/ui/auth-fuse";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +32,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
+          <Route path="/auth" element={<PageTransition><AuthUI /></PageTransition>} />
           <Route path="/roadmap" element={<PageTransition><Roadmap /></PageTransition>} />
           <Route path="/dashboard" element={<DashboardLayout><PageTransition><Dashboard /></PageTransition></DashboardLayout>} />
           <Route path="/dashboard/omniwrite" element={<DashboardLayout><PageTransition><OmniWrite /></PageTransition></DashboardLayout>} />
@@ -37,11 +41,12 @@ const App = () => (
           <Route path="/dashboard/omnidesign-working" element={<PageTransition><WorkingOmniDesign /></PageTransition>} />
           <Route path="/dashboard/omnidesign-enhanced" element={<PageTransition><EnhancedOmniDesign /></PageTransition>} />
           <Route path="/dashboard/omnidesign-classic" element={<DashboardLayout><PageTransition><OmniDesign /></PageTransition></DashboardLayout>} />
-          <Route path="/dashboard/omnigenerate" element={<DashboardLayout><PageTransition><OmniGenerate /></PageTransition></DashboardLayout>} />
+          <Route path="/dashboard/omnigenerate" element={<PageTransition><NewOmniGenerate /></PageTransition>} />
           <Route path="/dashboard/settings" element={<DashboardLayout><PageTransition><DashboardSettings /></PageTransition></DashboardLayout>} />
           <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
         </Routes>
       </BrowserRouter>
+
     </TooltipProvider>
   </QueryClientProvider>
 );
