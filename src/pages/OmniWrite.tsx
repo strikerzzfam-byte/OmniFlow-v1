@@ -8,6 +8,7 @@ import WritingToolbar from '@/components/write/WritingToolbar';
 import WritingAssistant from '@/components/write/WritingAssistant';
 import DocumentOutline from '@/components/write/DocumentOutline';
 import TemplateLibrary from '@/components/write/TemplateLibrary';
+import WordCountTracker from '@/components/write/WordCountTracker';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,7 @@ const OmniWrite = () => {
     documentHistory,
     comments,
     wordCount,
+    readingTime,
     readabilityScore,
     seoScore,
     isAutoSaving,
@@ -250,6 +252,12 @@ const OmniWrite = () => {
               <DocumentOutline
                 outline={outline}
                 onItemClick={handleOutlineItemClick}
+              />
+              
+              <WordCountTracker
+                wordCount={wordCount}
+                readingTime={readingTime}
+                className="mt-4"
               />
             </motion.div>
           )}

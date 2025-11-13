@@ -1,81 +1,72 @@
-import { useState } from 'react';
-import { motion, Reorder } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { 
-  X, Eye, EyeOff, Lock, Unlock, Trash2, Copy, 
-  ChevronDown, ChevronRight, Folder, FolderOpen
+  Layers, Eye, EyeOff, Lock, Unlock, Copy, Trash2, 
+  ChevronDown, ChevronRight, X, GripVertical
 } from 'lucide-react';
-import { CanvasShape } from '@/hooks/useCanvasTools';
-
-interface LayerGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  shapes: string[];
-}
+import { Shape } from '@/hooks/useCanvasTools';
+import { cn } from '@/lib/utils';
 
 interface LayerPanelProps {
-  shapes: CanvasShape[];
+  shapes: Shape[];
   selectedIds: string[];
   onShapeSelect: (id: string, multi?: boolean) => void;
-  onShapeUpdate: (id: string, updates: Partial<CanvasShape>) => void;
+  onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
   onShapeDelete: (id: string) => void;
   onShapeCopy: (id: string) => void;
   onClose: () => void;
 }
 
-const LayerPanel = ({ 
-  shapes, 
-  selectedIds, 
-  onShapeSelect, 
-  onShapeUpdate, 
-  onShapeDelete, 
+const LayerPanel: React.FC<LayerPanelProps> = ({
+  shapes,
+  selectedIds,
+  onShapeSelect,
+  onShapeUpdate,
+  onShapeDelete,
   onShapeCopy,
-  onClose 
-}: LayerPanelProps) => {
-  const [groups, setGroups] = useState<LayerGroup[]>([]);
+  onClose
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+
+  const filteredShapes = shapes
+    .filter(shape => 
+      !searchTerm || 
+      (shape.text && shape.text.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      shape.type.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
 
   const getShapeIcon = (type: string) => {
     const icons = {
-      rect: '⬜',
-      circle: '⭕',
-      text: '📝',
-      line: '📏',
-      arrow: '➡️',
-      star: '⭐',
-      polygon: '🔷',
-      triangle: '🔺',
-      image: '🖼️',
-      path: '✏️'
+      rect: '▭',
+      circle: '●',
+      text: 'T',
+      star: '★',
+      line: '—',
+      polygon: '⬟',
+      arrow: '→',
+      group: '📁',
+      image: '🖼'
     };
-    return icons[type as keyof typeof icons] || '❓';
+    return icons[type] || '◯';
   };
 
-  const filteredShapes = shapes.filter(shape => 
-    shape.text?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    shape.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const sortedShapes = [...filteredShapes].sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0));
+  const getShapeName = (shape: Shape) => {
+    if (shape.text) return shape.text.slice(0, 20) + (shape.text.length > 20 ? '...' : '');
+    return `${shape.type.charAt(0).toUpperCase() + shape.type.slice(1)}`;
+  };
 
   const toggleGroup = (groupId: string) => {
-    setGroups(prev => prev.map(group => 
-      group.id === groupId ? { ...group, expanded: !group.expanded } : group
-    ));
-  };
-
-  const createGroup = () => {
-    if (selectedIds.length > 1) {
-      const newGroup: LayerGroup = {
-        id: `group-${Date.now()}`,
-        name: `Group ${groups.length + 1}`,
-        expanded: true,
-        shapes: selectedIds
-      };
-      setGroups(prev => [...prev, newGroup]);
+    const newExpanded = new Set(expandedGroups);
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId);
+    } else {
+      newExpanded.add(groupId);
     }
+    setExpandedGroups(newExpanded);
   };
 
   return (
@@ -83,232 +74,191 @@ const LayerPanel = ({
       initial={{ x: -300, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -300, opacity: 0 }}
-      className="w-80 h-full glass border-r border-glass-border/50 flex flex-col"
+      className="w-80 glass border-r border-glass-border/50 flex flex-col h-full"
     >
       {/* Header */}
-      <div className="p-4 border-b border-glass-border/50">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Layers</h3>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
+      <div className="flex items-center justify-between p-4 border-b border-glass-border/50">
+        <div className="flex items-center space-x-2">
+          <Layers className="w-5 h-5 text-[#00B4D8]" />
+          <h3 className="font-semibold text-foreground">Layers</h3>
         </div>
-        
-        {/* Search */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="w-8 h-8 p-0"
+        >
+          <X className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Search */}
+      <div className="p-4 border-b border-glass-border/50">
         <Input
           placeholder="Search layers..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="h-8 mb-3"
+          className="h-8"
         />
-        
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={createGroup}
-            disabled={selectedIds.length < 2}
-            className="text-xs"
-          >
-            Group ({selectedIds.length})
-          </Button>
-        </div>
       </div>
 
-      {/* Layers List */}
-      <div className="flex-1 overflow-y-auto p-2">
-        {sortedShapes.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            <p>No layers yet</p>
-            <p className="text-sm">Start drawing to create layers</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {/* Groups */}
-            {groups.map((group) => (
-              <div key={group.id} className="mb-2">
-                <motion.div
-                  className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer"
-                  onClick={() => toggleGroup(group.id)}
-                >
-                  {group.expanded ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
+      {/* Layer List */}
+      <div className="flex-1 overflow-y-auto">
+        <AnimatePresence>
+          {filteredShapes.map((shape, index) => {
+            const isSelected = selectedIds.includes(shape.id);
+            const isGroup = shape.type === 'group';
+            const isExpanded = expandedGroups.has(shape.id);
+
+            return (
+              <motion.div
+                key={shape.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: index * 0.02 }}
+                className={cn(
+                  "group relative border-b border-glass-border/30 hover:bg-white/5 transition-colors",
+                  isSelected && "bg-[#00B4D8]/10 border-[#00B4D8]/30"
+                )}
+              >
+                <div className="flex items-center p-3 space-x-2">
+                  {/* Drag Handle */}
+                  <GripVertical className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 cursor-grab" />
+
+                  {/* Group Expand/Collapse */}
+                  {isGroup && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => toggleGroup(shape.id)}
+                      className="w-4 h-4 p-0"
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="w-3 h-3" />
+                      ) : (
+                        <ChevronRight className="w-3 h-3" />
+                      )}
+                    </Button>
                   )}
-                  {group.expanded ? (
-                    <FolderOpen className="w-4 h-4 text-primary" />
-                  ) : (
-                    <Folder className="w-4 h-4 text-primary" />
-                  )}
-                  <span className="font-medium">{group.name}</span>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {group.shapes.length}
-                  </span>
-                </motion.div>
-                
-                {group.expanded && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="ml-6 space-y-1 mt-1"
+
+                  {/* Shape Icon */}
+                  <div className="w-6 h-6 flex items-center justify-center text-sm">
+                    {getShapeIcon(shape.type)}
+                  </div>
+
+                  {/* Shape Name */}
+                  <div
+                    className="flex-1 cursor-pointer"
+                    onClick={() => onShapeSelect(shape.id)}
                   >
-                    {group.shapes.map(shapeId => {
-                      const shape = shapes.find(s => s.id === shapeId);
-                      if (!shape) return null;
-                      
+                    <div className="text-sm font-medium text-foreground">
+                      {getShapeName(shape)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {Math.round(shape.x)}, {Math.round(shape.y)}
+                      {shape.width && shape.height && (
+                        <span> • {Math.round(shape.width)}×{Math.round(shape.height)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onShapeUpdate(shape.id, { visible: !shape.visible })}
+                      className="w-6 h-6 p-0"
+                      title={shape.visible ? 'Hide' : 'Show'}
+                    >
+                      {shape.visible !== false ? (
+                        <Eye className="w-3 h-3" />
+                      ) : (
+                        <EyeOff className="w-3 h-3 text-muted-foreground" />
+                      )}
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onShapeUpdate(shape.id, { locked: !shape.locked })}
+                      className="w-6 h-6 p-0"
+                      title={shape.locked ? 'Unlock' : 'Lock'}
+                    >
+                      {shape.locked ? (
+                        <Lock className="w-3 h-3" />
+                      ) : (
+                        <Unlock className="w-3 h-3" />
+                      )}
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onShapeCopy(shape.id)}
+                      className="w-6 h-6 p-0"
+                      title="Duplicate"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onShapeDelete(shape.id)}
+                      className="w-6 h-6 p-0 text-red-400 hover:text-red-300"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Group Children */}
+                {isGroup && isExpanded && shape.children && (
+                  <div className="ml-8 border-l border-glass-border/30">
+                    {shape.children.map((childId: string) => {
+                      const childShape = shapes.find(s => s.id === childId);
+                      if (!childShape) return null;
+
                       return (
-                        <LayerItem
-                          key={shape.id}
-                          shape={shape}
-                          isSelected={selectedIds.includes(shape.id)}
-                          onSelect={onShapeSelect}
-                          onUpdate={onShapeUpdate}
-                          onDelete={onShapeDelete}
-                          onCopy={onShapeCopy}
-                          getIcon={getShapeIcon}
-                        />
+                        <div
+                          key={childId}
+                          className="flex items-center p-2 space-x-2 hover:bg-white/5"
+                        >
+                          <div className="w-4 h-4 flex items-center justify-center text-xs">
+                            {getShapeIcon(childShape.type)}
+                          </div>
+                          <div className="flex-1 text-sm text-muted-foreground">
+                            {getShapeName(childShape)}
+                          </div>
+                        </div>
                       );
                     })}
-                  </motion.div>
+                  </div>
                 )}
-              </div>
-            ))}
-            
-            {/* Ungrouped Shapes */}
-            <Reorder.Group
-              axis="y"
-              values={sortedShapes}
-              onReorder={() => {}} // Handle reordering
-              className="space-y-1"
-            >
-              {sortedShapes
-                .filter(shape => !groups.some(group => group.shapes.includes(shape.id)))
-                .map((shape) => (
-                  <Reorder.Item key={shape.id} value={shape}>
-                    <LayerItem
-                      shape={shape}
-                      isSelected={selectedIds.includes(shape.id)}
-                      onSelect={onShapeSelect}
-                      onUpdate={onShapeUpdate}
-                      onDelete={onShapeDelete}
-                      onCopy={onShapeCopy}
-                      getIcon={getShapeIcon}
-                    />
-                  </Reorder.Item>
-                ))}
-            </Reorder.Group>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+
+        {filteredShapes.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
+            <Layers className="w-8 h-8 mb-2 opacity-50" />
+            <p className="text-sm">No layers found</p>
+            {searchTerm && (
+              <p className="text-xs mt-1">Try a different search term</p>
+            )}
           </div>
         )}
       </div>
-    </motion.div>
-  );
-};
 
-interface LayerItemProps {
-  shape: CanvasShape;
-  isSelected: boolean;
-  onSelect: (id: string, multi?: boolean) => void;
-  onUpdate: (id: string, updates: Partial<CanvasShape>) => void;
-  onDelete: (id: string) => void;
-  onCopy: (id: string) => void;
-  getIcon: (type: string) => string;
-}
-
-const LayerItem = ({ 
-  shape, 
-  isSelected, 
-  onSelect, 
-  onUpdate, 
-  onDelete, 
-  onCopy, 
-  getIcon 
-}: LayerItemProps) => {
-  return (
-    <motion.div
-      layout
-      className={`p-3 rounded-lg border cursor-pointer transition-all group ${
-        isSelected
-          ? 'bg-primary/20 border-primary shadow-lg shadow-primary/25'
-          : 'bg-muted/30 border-border hover:bg-muted/50 hover:border-primary/50'
-      }`}
-      onClick={(e) => onSelect(shape.id, e.shiftKey)}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <span className="text-lg flex-shrink-0">{getIcon(shape.type)}</span>
-          <div className="min-w-0 flex-1">
-            <p className="font-medium capitalize truncate">
-              {shape.type}
-              {shape.type === 'text' && shape.text && (
-                <span className="text-muted-foreground"> - {shape.text.slice(0, 15)}...</span>
-              )}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {Math.round(shape.x)}, {Math.round(shape.y)}
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-6 h-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              onUpdate(shape.id, { visible: !shape.visible });
-            }}
-          >
-            {shape.visible !== false ? (
-              <Eye className="w-3 h-3" />
-            ) : (
-              <EyeOff className="w-3 h-3 text-muted-foreground" />
-            )}
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-6 h-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              onUpdate(shape.id, { locked: !shape.locked });
-            }}
-          >
-            {shape.locked ? (
-              <Lock className="w-3 h-3 text-muted-foreground" />
-            ) : (
-              <Unlock className="w-3 h-3" />
-            )}
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-6 h-6"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCopy(shape.id);
-            }}
-          >
-            <Copy className="w-3 h-3" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-6 h-6 hover:bg-destructive/20 hover:text-destructive"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(shape.id);
-            }}
-          >
-            <Trash2 className="w-3 h-3" />
-          </Button>
+      {/* Footer Stats */}
+      <div className="p-4 border-t border-glass-border/50 text-xs text-muted-foreground">
+        <div className="flex justify-between">
+          <span>{shapes.length} objects</span>
+          <span>{selectedIds.length} selected</span>
         </div>
       </div>
     </motion.div>

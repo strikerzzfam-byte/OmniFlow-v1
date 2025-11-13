@@ -71,6 +71,20 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
           editor.chain().focus().insertContent(`[Translated: ${selectedText}]`).run();
         }
         break;
+      case 'grammar':
+        if (selectedText) {
+          // Mock grammar correction
+          const corrected = selectedText.replace(/\bi\b/g, 'I').replace(/\bteh\b/g, 'the');
+          editor.chain().focus().insertContent(corrected).run();
+        }
+        break;
+      case 'simplify':
+        if (selectedText) {
+          // Mock simplification
+          const simplified = selectedText.replace(/utilize/g, 'use').replace(/facilitate/g, 'help');
+          editor.chain().focus().insertContent(simplified).run();
+        }
+        break;
     }
   };
 
@@ -78,7 +92,9 @@ const WritingAssistant: React.FC<WritingAssistantProps> = ({
     { id: 'summarize', icon: Shrink, label: 'Summarize', description: 'Create a brief summary' },
     { id: 'expand', icon: Expand, label: 'Expand', description: 'Add more detail' },
     { id: 'rephrase', icon: RotateCcw, label: 'Rephrase', description: 'Rewrite in current tone' },
-    { id: 'translate', icon: Languages, label: 'Translate', description: 'Translate text' }
+    { id: 'translate', icon: Languages, label: 'Translate', description: 'Translate text' },
+    { id: 'grammar', icon: BookOpen, label: 'Fix Grammar', description: 'Correct grammar and spelling' },
+    { id: 'simplify', icon: Lightbulb, label: 'Simplify', description: 'Make text easier to read' }
   ];
 
   const getScoreColor = (score: number) => {

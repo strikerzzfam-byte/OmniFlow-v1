@@ -5,6 +5,13 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 
+import TextAlign from '@tiptap/extension-text-align';
+import Underline from '@tiptap/extension-underline';
+import Subscript from '@tiptap/extension-subscript';
+import Superscript from '@tiptap/extension-superscript';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+
 export interface WritingTone {
   id: string;
   name: string;
@@ -41,6 +48,7 @@ export const useRichEditor = () => {
   const [documentHistory, setDocumentHistory] = useState<DocumentSnapshot[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [wordCount, setWordCount] = useState(0);
+  const [readingTime, setReadingTime] = useState(0);
   const [readabilityScore, setReadabilityScore] = useState(0);
   const [seoScore, setSeoScore] = useState(0);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
@@ -65,13 +73,26 @@ export const useRichEditor = () => {
         Placeholder.configure({
           placeholder: 'Start writing your masterpiece...',
         }),
+
+        TextAlign.configure({
+          types: ['heading', 'paragraph'],
+        }),
+        Underline,
+        Subscript,
+        Superscript,
+        TaskList,
+        TaskItem.configure({
+          nested: true,
+        }),
       ],
       content: '<p>Welcome to OmniWrite! Start typing to begin your document...</p>',
       editable: true,
       autofocus: true,
       onUpdate: ({ editor }) => {
         const text = editor.getText();
-        setWordCount(text.split(/\s+/).filter(word => word.length > 0).length);
+        const words = text.split(/\s+/).filter(word => word.length > 0).length;
+        setWordCount(words);
+        setReadingTime(Math.ceil(words / 200)); // Average reading speed: 200 words per minute
         calculateReadabilityScore(text);
         calculateSEOScore(editor.getHTML());
         autoSave(editor.getHTML());
@@ -234,6 +255,7 @@ export const useRichEditor = () => {
     documentHistory,
     comments,
     wordCount,
+    readingTime,
     readabilityScore,
     seoScore,
     isAutoSaving,

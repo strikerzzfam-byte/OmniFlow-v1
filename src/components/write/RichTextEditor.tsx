@@ -61,43 +61,53 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ editor, className }) =>
         />
       </div>
       
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.8 }}
-        className="absolute top-4 right-4 glass rounded-lg p-2 shadow-lg border border-glass-border/50"
-        style={{ display: editor.state.selection.empty ? 'none' : 'block' }}
-      >
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            className={cn(
-              "p-1.5 rounded text-xs font-medium transition-colors",
-              editor.isActive('bold') ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-            )}
-          >
-            B
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={cn(
-              "p-1.5 rounded text-xs font-medium italic transition-colors",
-              editor.isActive('italic') ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-            )}
-          >
-            I
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={cn(
-              "p-1.5 rounded text-xs font-medium line-through transition-colors",
-              editor.isActive('strike') ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-            )}
-          >
-            S
-          </button>
-        </div>
-      </motion.div>
+      {!editor.state.selection.empty && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          className="absolute top-4 right-4 glass rounded-lg p-2 shadow-lg border border-glass-border/50"
+        >
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className={cn(
+                "p-1.5 rounded text-xs font-medium transition-colors",
+                editor.isActive('bold') ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              )}
+            >
+              B
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className={cn(
+                "p-1.5 rounded text-xs font-medium italic transition-colors",
+                editor.isActive('italic') ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              )}
+            >
+              I
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              className={cn(
+                "p-1.5 rounded text-xs font-medium underline transition-colors",
+                editor.isActive('underline') ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              )}
+            >
+              U
+            </button>
+            <button
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              className={cn(
+                "p-1.5 rounded text-xs font-medium line-through transition-colors",
+                editor.isActive('strike') ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              )}
+            >
+              S
+            </button>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 };

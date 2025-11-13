@@ -1,491 +1,322 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { Stage, Layer, Rect, Circle, Text, Line, Star, RegularPolygon, Arrow, Transformer, Group } from 'react-konva';
-import { KonvaEventObject } from 'konva/lib/Node';
-import Konva from 'konva';
+import React, { useRef, useEffect, useState } from 'react';
+import { Stage, Layer, Rect, Circle, Text, Star, Arrow, Line, Image as KonvaImage } from 'react-konva';
 import { motion } from 'framer-motion';
-import * as Y from 'yjs';
-import { WebsocketProvider } from 'y-websocket';
-import { useCanvasTools, CanvasShape } from '@/hooks/useCanvasTools';
-
-interface Shape {
-  id: string;
-  type: 'rect' | 'circle' | 'text' | 'line' | 'arrow' | 'star' | 'image';
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  radius?: number;
-  fill: string;
-  stroke?: string;
-  strokeWidth?: number;
-  text?: string;
-  fontSize?: number;
-  fontFamily?: string;
-  rotation?: number;
-  scaleX?: number;
-  scaleY?: number;
-  opacity?: number;
-  points?: number[];
-  src?: string;
-}
+import { Shape, CanvasState } from '@/hooks/useCanvasTools';
+import Konva from 'konva';
 
 interface CanvasBoardProps {
-  selectedTool: string;
-  onShapeAdd: (shape: Shape) => void;
-  onShapeSelect: (shape: Shape | null) => void;
-  selectedShape: Shape | null;
-  onAnimationPlay?: (animationType: string, shape: Shape, duration: number) => void;
-  onShapeUpdate?: (shape: Shape) => void;
+  shapes: Shape[];
+  canvasState: CanvasState;
+  activeTool: string;
+  onShapeSelect: (id: string, multi?: boolean) => void;
+  onShapeUpdate: (id: string, updates: Partial<Shape>) => void;
+  onAddShape: (shape: Partial<Shape>) => void;
+  onClearSelection: () => void;
 }
 
-const CanvasBoard = ({ selectedTool, onShapeAdd, onShapeSelect, selectedShape, onAnimationPlay, onShapeUpdate }: CanvasBoardProps) => {
-  const stageRef = useRef<any>(null);
-  const transformerRef = useRef<any>(null);
-  const [shapes, setShapes] = useState<Shape[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentPath, setCurrentPath] = useState<number[]>([]);
-  const [editingText, setEditingText] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState('');
-  const ydocRef = useRef<Y.Doc | null>(null);
-  const providerRef = useRef<WebsocketProvider | null>(null);
+const CanvasBoard: React.FC<CanvasBoardProps> = ({
+  shapes,
+  canvasState,
+  activeTool,
+  onShapeSelect,
+  onShapeUpdate,
+  onAddShape,
+  onClearSelection
+}) => {
+  const stageRef = useRef<Konva.Stage>(null);
+  const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
 
   useEffect(() => {
-    const ydoc = new Y.Doc();
-    const provider = new WebsocketProvider('ws://localhost:1234', 'omnidesign-room', ydoc);
-    const yShapes = ydoc.getArray('shapes');
-
-    ydocRef.current = ydoc;
-    providerRef.current = provider;
-
-    const updateShapes = () => {
-      const newShapes = yShapes.toArray() as Shape[];
-      setShapes(newShapes);
-    };
-
-    yShapes.observe(updateShapes);
-    updateShapes();
-
-    return () => {
-      yShapes.unobserve(updateShapes);
-      provider.destroy();
-    };
-  }, []);
-
-  const addShape = (x: number, y: number) => {
-    if (!ydocRef.current) return;
-
-    const yShapes = ydocRef.current.getArray('shapes');
-    const id = `shape-${Date.now()}-${Math.random()}`;
-    
-    let newShape: Shape;
-    
-    switch (selectedTool) {
-      case 'rect':
-        newShape = { id, type: 'rect', x, y, width: 100, height: 80, fill: '#00B4D8', stroke: '#0077B6', strokeWidth: 2 };
-        break;
-      case 'circle':
-        newShape = { id, type: 'circle', x, y, radius: 50, fill: '#9D4EDD', stroke: '#7209B7', strokeWidth: 2 };
-        break;
-      case 'text':
-        newShape = { id, type: 'text', x, y, text: 'Double click to edit', fill: '#F8F9FA', fontSize: 16, fontFamily: 'Inter' };
-        break;
-      case 'line':
-        newShape = { id, type: 'line', x, y, points: [0, 0, 100, 0], stroke: '#F77F00', strokeWidth: 3 };
-        break;
-      case 'arrow':
-        newShape = { id, type: 'arrow', x, y, points: [0, 0, 100, 0], stroke: '#D62828', strokeWidth: 3, fill: '#D62828' };
-        break;
-      case 'star':
-        newShape = { id, type: 'star', x, y, radius: 40, fill: '#FCBF49', stroke: '#F77F00', strokeWidth: 2 };
-        break;
-      case 'image':
-        newShape = { id, type: 'image', x, y, width: 100, height: 100, src: 'https://via.placeholder.com/100' };
-        break;
-      case 'pen':
-        newShape = { id, type: 'line', x: 0, y: 0, points: [x, y], stroke: '#000000', strokeWidth: 2 };
-        break;
-      default:
-        return;
-    }
-
-    yShapes.push([newShape]);
-    onShapeAdd(newShape);
-  };
-
-  const updateShape = (id: string, attrs: Partial<Shape>) => {
-    if (!ydocRef.current) return;
-
-    const yShapes = ydocRef.current.getArray('shapes');
-    const shapeIndex = shapes.findIndex(s => s.id === id);
-    
-    if (shapeIndex >= 0) {
-      const updatedShape = { ...shapes[shapeIndex], ...attrs };
-      yShapes.delete(shapeIndex, 1);
-      yShapes.insert(shapeIndex, [updatedShape]);
-    }
-  };
-
-  const handleStageClick = (e: KonvaEventObject<MouseEvent>) => {
-    if (e.target === e.target.getStage()) {
-      setSelectedId(null);
-      onShapeSelect(null);
-      if (selectedTool !== 'select' && selectedTool !== 'pen') {
-        const pos = e.target.getStage()?.getPointerPosition();
-        if (pos) addShape(pos.x, pos.y);
-      }
-    }
-  };
-  
-  const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
-    if (selectedTool === 'pen') {
-      setIsDrawing(true);
-      const pos = e.target.getStage()?.getPointerPosition();
-      if (pos) {
-        setCurrentPath([pos.x, pos.y]);
-      }
-    }
-  };
-  
-  const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
-    if (!isDrawing || selectedTool !== 'pen') return;
-    
-    const stage = e.target.getStage();
-    const point = stage?.getPointerPosition();
-    if (point) {
-      setCurrentPath(prev => [...prev, point.x, point.y]);
-    }
-  };
-  
-  const handleMouseUp = () => {
-    if (isDrawing && selectedTool === 'pen' && currentPath.length > 2) {
-      const id = `shape-${Date.now()}-${Math.random()}`;
-      const newShape: Shape = {
-        id,
-        type: 'line',
-        x: 0,
-        y: 0,
-        points: currentPath,
-        stroke: '#000000',
-        strokeWidth: 2,
-        fill: 'transparent'
-      };
-      
-      if (ydocRef.current) {
-        const yShapes = ydocRef.current.getArray('shapes');
-        yShapes.push([newShape]);
-        onShapeAdd(newShape);
-      }
-    }
-    setIsDrawing(false);
-    setCurrentPath([]);
-  };
-  
-  const handleShapeClick = (shape: Shape) => {
-    setSelectedId(shape.id);
-    onShapeSelect(shape);
-  };
-
-  const handleTextDoubleClick = (shape: Shape) => {
-    if (shape.type === 'text') {
-      setEditingText(shape.id);
-      setEditingValue(shape.text || '');
-    }
-  };
-
-  const handleTextSubmit = () => {
-    if (editingText && editingValue.trim()) {
-      updateShape(editingText, { text: editingValue.trim() });
-    }
-    setEditingText(null);
-    setEditingValue('');
-  };
-
-  const handleTextCancel = () => {
-    setEditingText(null);
-    setEditingValue('');
-  };
-
-  useEffect(() => {
-    if (selectedId && transformerRef.current) {
-      const stage = stageRef.current;
-      const selectedNode = stage.findOne(`#${selectedId}`);
-      if (selectedNode) {
-        transformerRef.current.nodes([selectedNode]);
-        transformerRef.current.getLayer().batchDraw();
-      }
-    }
-  }, [selectedId]);
-
-  const playKonvaAnimation = (animationType: string, shape: Shape, duration: number) => {
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const node = stage.findOne(`#${shape.id}`);
-    if (!node) return;
-
-    const originalProps = {
-      x: node.x(),
-      y: node.y(),
-      scaleX: node.scaleX(),
-      scaleY: node.scaleY(),
-      rotation: node.rotation(),
-      opacity: node.opacity()
-    };
-
-    switch (animationType) {
-      case "fadeIn":
-        node.opacity(0);
-        node.to({ opacity: originalProps.opacity, duration });
-        break;
-      case "slideIn":
-        node.x(originalProps.x - 100);
-        node.to({ x: originalProps.x, duration });
-        break;
-      case "scaleUp":
-        node.scaleX(0);
-        node.scaleY(0);
-        node.to({ scaleX: originalProps.scaleX, scaleY: originalProps.scaleY, duration });
-        break;
-      case "rotate":
-        node.to({ rotation: originalProps.rotation + 360, duration });
-        break;
-      case "bounce":
-        node.to({
-          y: originalProps.y - 20,
-          duration: duration / 2,
-          onFinish: () => {
-            node.to({ y: originalProps.y, duration: duration / 2 });
-          }
+    const updateSize = () => {
+      const container = stageRef.current?.container();
+      if (container) {
+        setStageSize({
+          width: container.offsetWidth,
+          height: container.offsetHeight
         });
-        break;
-    }
-  };
-
-  useEffect(() => {
-    const handleAnimationEvent = (event: any) => {
-      const { animationType, shape, duration } = event.detail;
-      playKonvaAnimation(animationType, shape, duration);
-    };
-
-    const handleShapeUpdateEvent = (event: any) => {
-      const { shape } = event.detail;
-      updateShape(shape.id, shape);
-    };
-
-    const handleSelectShapeEvent = (event: any) => {
-      const { shapeId } = event.detail;
-      setSelectedId(shapeId);
-      const shape = shapes.find(s => s.id === shapeId);
-      if (shape) {
-        onShapeSelect(shape);
       }
     };
 
-    const canvasElement = stageRef.current?.container();
-    if (canvasElement) {
-      canvasElement.addEventListener('playAnimation', handleAnimationEvent);
-      canvasElement.addEventListener('updateShape', handleShapeUpdateEvent);
-      canvasElement.addEventListener('selectShape', handleSelectShapeEvent);
-      return () => {
-        canvasElement.removeEventListener('playAnimation', handleAnimationEvent);
-        canvasElement.removeEventListener('updateShape', handleShapeUpdateEvent);
-        canvasElement.removeEventListener('selectShape', handleSelectShapeEvent);
-      };
-    }
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const handleDragEnd = (e: KonvaEventObject<DragEvent>, id: string) => {
-    updateShape(id, { x: e.target.x(), y: e.target.y() });
+  const handleStageClick = (e: any) => {
+    if (e.target === e.target.getStage()) {
+      if (activeTool === 'select') {
+        onClearSelection();
+        return;
+      }
+
+      const pos = e.target.getStage().getPointerPosition();
+      const newShape: Partial<Shape> = {
+        x: pos.x,
+        y: pos.y
+      };
+
+      switch (activeTool) {
+        case 'rect':
+          onAddShape({
+            ...newShape,
+            type: 'rect',
+            width: 100,
+            height: 60,
+            fill: '#00B4D8'
+          });
+          break;
+        case 'circle':
+          onAddShape({
+            ...newShape,
+            type: 'circle',
+            width: 80,
+            height: 80,
+            fill: '#9D4EDD'
+          });
+          break;
+        case 'text':
+          onAddShape({
+            ...newShape,
+            type: 'text',
+            text: 'Double click to edit',
+            fontSize: 24,
+            fill: '#F8F9FA',
+            fontFamily: 'Inter'
+          });
+          break;
+        case 'star':
+          onAddShape({
+            ...newShape,
+            type: 'star',
+            width: 80,
+            height: 80,
+            fill: '#FFD60A'
+          });
+          break;
+        case 'line':
+          onAddShape({
+            ...newShape,
+            type: 'line',
+            points: [0, 0, 100, 0],
+            stroke: '#F8F9FA',
+            strokeWidth: 2
+          });
+          break;
+      }
+    }
+  };
+
+  const renderShape = (shape: Shape) => {
+    const isSelected = canvasState.selectedIds.includes(shape.id);
+    const commonProps = {
+      key: shape.id,
+      x: shape.x,
+      y: shape.y,
+      rotation: shape.rotation || 0,
+      scaleX: shape.scaleX || 1,
+      scaleY: shape.scaleY || 1,
+      opacity: shape.opacity || 1,
+      visible: shape.visible !== false,
+      draggable: !shape.locked && activeTool === 'select',
+      onClick: (e: any) => {
+        e.cancelBubble = true;
+        onShapeSelect(shape.id, e.evt.shiftKey);
+      },
+      onDragEnd: (e: any) => {
+        onShapeUpdate(shape.id, {
+          x: e.target.x(),
+          y: e.target.y()
+        });
+      },
+      onTransformEnd: (e: any) => {
+        const node = e.target;
+        const scaleX = node.scaleX();
+        const scaleY = node.scaleY();
+        
+        onShapeUpdate(shape.id, {
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+          scaleX,
+          scaleY,
+          width: Math.max(5, node.width() * scaleX),
+          height: Math.max(5, node.height() * scaleY)
+        });
+        
+        node.scaleX(1);
+        node.scaleY(1);
+      },
+      stroke: isSelected ? '#00B4D8' : shape.stroke,
+      strokeWidth: isSelected ? 2 : (shape.strokeWidth || 0)
+    };
+
+    switch (shape.type) {
+      case 'rect':
+        return (
+          <Rect
+            {...commonProps}
+            width={shape.width || 100}
+            height={shape.height || 60}
+            fill={shape.fill}
+            cornerRadius={shape.borderRadius || 0}
+          />
+        );
+      
+      case 'circle':
+        return (
+          <Circle
+            {...commonProps}
+            radius={(shape.width || 80) / 2}
+            fill={shape.fill}
+          />
+        );
+      
+      case 'text':
+        return (
+          <Text
+            {...commonProps}
+            text={shape.text || 'Text'}
+            fontSize={shape.fontSize || 24}
+            fontFamily={shape.fontFamily || 'Inter'}
+            fontStyle={shape.fontWeight || 'normal'}
+            fill={shape.fill}
+            align={shape.textAlign || 'left'}
+            onDblClick={() => {
+              // Handle text editing
+              const textNode = stageRef.current?.findOne(`#${shape.id}`);
+              if (textNode) {
+                textNode.hide();
+                // Create textarea for editing
+              }
+            }}
+          />
+        );
+      
+      case 'star':
+        return (
+          <Star
+            {...commonProps}
+            numPoints={5}
+            innerRadius={(shape.width || 80) / 4}
+            outerRadius={(shape.width || 80) / 2}
+            fill={shape.fill}
+          />
+        );
+      
+      case 'line':
+        return (
+          <Line
+            {...commonProps}
+            points={shape.points || [0, 0, 100, 0]}
+            stroke={shape.stroke || shape.fill}
+            strokeWidth={shape.strokeWidth || 2}
+          />
+        );
+      
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className="w-full h-full bg-background/50 rounded-lg overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex-1 relative overflow-hidden bg-[#1a1a1a]"
+    >
+      {/* Grid Background */}
+      {canvasState.grid && (
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, #333 1px, transparent 1px),
+              linear-gradient(to bottom, #333 1px, transparent 1px)
+            `,
+            backgroundSize: '20px 20px',
+            transform: `scale(${canvasState.zoom}) translate(${canvasState.pan.x}px, ${canvasState.pan.y}px)`
+          }}
+        />
+      )}
+
+      {/* Rulers */}
+      {canvasState.rulers && (
+        <>
+          {/* Horizontal Ruler */}
+          <div className="absolute top-0 left-16 right-0 h-4 bg-black/50 border-b border-gray-600">
+            {Array.from({ length: Math.ceil(stageSize.width / 50) }, (_, i) => (
+              <div
+                key={i}
+                className="absolute top-0 h-full border-l border-gray-500"
+                style={{ left: i * 50 }}
+              >
+                <span className="text-xs text-gray-400 ml-1">{i * 50}</span>
+              </div>
+            ))}
+          </div>
+          
+          {/* Vertical Ruler */}
+          <div className="absolute top-4 left-0 bottom-0 w-16 bg-black/50 border-r border-gray-600">
+            {Array.from({ length: Math.ceil(stageSize.height / 50) }, (_, i) => (
+              <div
+                key={i}
+                className="absolute left-0 w-full border-t border-gray-500"
+                style={{ top: i * 50 }}
+              >
+                <span className="text-xs text-gray-400 ml-1 rotate-90 origin-left">{i * 50}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Konva Stage */}
       <Stage
         ref={stageRef}
-        width={window.innerWidth - 300}
-        height={window.innerHeight - 100}
+        width={stageSize.width}
+        height={stageSize.height}
+        scaleX={canvasState.zoom}
+        scaleY={canvasState.zoom}
+        x={canvasState.pan.x}
+        y={canvasState.pan.y}
         onClick={handleStageClick}
-        onMouseDown={handleMouseDown}
-        onMousemove={handleMouseMove}
-        onMouseup={handleMouseUp}
-        className={selectedTool === 'pen' ? 'cursor-crosshair' : 'cursor-default'}
+        onWheel={(e) => {
+          e.evt.preventDefault();
+          const scaleBy = 1.1;
+          const stage = e.target.getStage();
+          const oldScale = stage.scaleX();
+          const pointer = stage.getPointerPosition();
+          
+          const mousePointTo = {
+            x: (pointer.x - stage.x()) / oldScale,
+            y: (pointer.y - stage.y()) / oldScale
+          };
+          
+          const newScale = e.evt.deltaY > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+          
+          stage.scale({ x: newScale, y: newScale });
+          
+          const newPos = {
+            x: pointer.x - mousePointTo.x * newScale,
+            y: pointer.y - mousePointTo.y * newScale
+          };
+          
+          stage.position(newPos);
+        }}
       >
         <Layer>
-          {shapes.map((shape) => {
-            const isSelected = shape.id === selectedId;
-            const commonProps = {
-              key: shape.id,
-              id: shape.id,
-              draggable: true,
-              onClick: () => handleShapeClick(shape),
-              onDragEnd: (e: any) => handleDragEnd(e, shape.id),
-              rotation: shape.rotation || 0,
-              scaleX: shape.scaleX || 1,
-              scaleY: shape.scaleY || 1,
-              opacity: shape.opacity || 1,
-              className: 'canvas-shape',
-            };
-            
-            if (shape.type === 'rect') {
-              return (
-                <Rect
-                  {...commonProps}
-                  x={shape.x}
-                  y={shape.y}
-                  width={shape.width}
-                  height={shape.height}
-                  fill={shape.fill}
-                  stroke={shape.stroke}
-                  strokeWidth={shape.strokeWidth}
-                />
-              );
-            }
-            
-            if (shape.type === 'circle') {
-              return (
-                <Circle
-                  {...commonProps}
-                  x={shape.x}
-                  y={shape.y}
-                  radius={shape.radius}
-                  fill={shape.fill}
-                  stroke={shape.stroke}
-                  strokeWidth={shape.strokeWidth}
-                />
-              );
-            }
-            
-            if (shape.type === 'text') {
-              return (
-                <Text
-                  {...commonProps}
-                  x={shape.x}
-                  y={shape.y}
-                  text={shape.text}
-                  fill={shape.fill}
-                  fontSize={shape.fontSize || 16}
-                  fontFamily={shape.fontFamily || 'Inter'}
-                  onDblClick={() => handleTextDoubleClick(shape)}
-                />
-              );
-            }
-            
-            if (shape.type === 'line') {
-              return (
-                <Line
-                  {...commonProps}
-                  x={shape.x}
-                  y={shape.y}
-                  points={shape.points}
-                  stroke={shape.stroke}
-                  strokeWidth={shape.strokeWidth}
-                  lineCap="round"
-                />
-              );
-            }
-            
-            if (shape.type === 'arrow') {
-              return (
-                <Line
-                  {...commonProps}
-                  x={shape.x}
-                  y={shape.y}
-                  points={shape.points}
-                  stroke={shape.stroke}
-                  strokeWidth={shape.strokeWidth}
-                  lineCap="round"
-                  fill={shape.fill}
-                  pointerLength={10}
-                  pointerWidth={10}
-                />
-              );
-            }
-            
-            if (shape.type === 'star') {
-              return (
-                <Star
-                  {...commonProps}
-                  x={shape.x}
-                  y={shape.y}
-                  numPoints={5}
-                  innerRadius={shape.radius ? shape.radius * 0.5 : 20}
-                  outerRadius={shape.radius || 40}
-                  fill={shape.fill}
-                  stroke={shape.stroke}
-                  strokeWidth={shape.strokeWidth}
-                />
-              );
-            }
-            
-            return null;
-          })}
-          
-          {/* Current drawing path */}
-          {isDrawing && currentPath.length > 2 && (
-            <Line
-              points={currentPath}
-              stroke="#000000"
-              strokeWidth={2}
-              lineCap="round"
-              lineJoin="round"
-            />
-          )}
-          
-          {selectedId && (
-            <Transformer
-              ref={transformerRef}
-              boundBoxFunc={(oldBox, newBox) => {
-                if (newBox.width < 5 || newBox.height < 5) {
-                  return oldBox;
-                }
-                return newBox;
-              }}
-            />
-          )}
+          {shapes
+            .filter(shape => shape.visible !== false)
+            .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
+            .map(renderShape)}
         </Layer>
       </Stage>
-      
-      {/* Text Editing Overlay */}
-      {editingText && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-          <div className="bg-background border rounded-lg p-4 shadow-lg min-w-80">
-            <h3 className="font-semibold mb-3">Edit Text</h3>
-            <textarea
-              value={editingValue}
-              onChange={(e) => setEditingValue(e.target.value)}
-              className="w-full h-24 p-2 border rounded resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Enter text..."
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.ctrlKey) {
-                  handleTextSubmit();
-                } else if (e.key === 'Escape') {
-                  handleTextCancel();
-                }
-              }}
-            />
-            <div className="flex justify-end gap-2 mt-3">
-              <button
-                onClick={handleTextCancel}
-                className="px-3 py-1 text-sm border rounded hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleTextSubmit}
-                className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
-              >
-                Save
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Press Ctrl+Enter to save, Esc to cancel
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
+
+      {/* Canvas Info */}
+      <div className="absolute bottom-4 left-4 glass rounded-lg px-3 py-2 text-xs text-muted-foreground">
+        Zoom: {Math.round(canvasState.zoom * 100)}% | Objects: {shapes.length}
+      </div>
+    </motion.div>
   );
 };
 
