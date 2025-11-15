@@ -1,0 +1,13 @@
+{
+  "name": "omnidesign-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^3.4.0",
+    "@hocuspocus/extension-logger": "^3.4.0"
+  }
+}

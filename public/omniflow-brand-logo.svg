@@ -1,0 +1,36 @@
+<svg width="800" height="240" viewBox="0 0 800 240" xmlns="http://www.w3.org/2000/svg">
+  <!-- Logo Icon -->
+  <g transform="translate(20, 20)">
+    <!-- Outer orbital ring -->
+    <ellipse cx="100" cy="100" rx="90" ry="35" fill="none" stroke="#00B4D8" stroke-width="6" opacity="0.9" transform="rotate(15 100 100)"/>
+    <!-- Inner orbital ring -->
+    <ellipse cx="100" cy="100" rx="90" ry="35" fill="none" stroke="#9D4EDD" stroke-width="6" opacity="0.9" transform="rotate(-15 100 100)"/>
+    <!-- Central lightbulb -->
+    <g transform="translate(100, 100)">
+      <!-- Bulb body -->
+      <path d="M-25,-40 Q-25,-65 0,-65 Q25,-65 25,-40 Q25,-15 20,-8 L-20,-8 Q-25,-15 -25,-40 Z" fill="#7209B7"/>
+      <!-- Bulb base -->
+      <rect x="-18" y="-8" width="36" height="12" fill="#00B4D8" rx="3"/>
+      <rect x="-15" y="4" width="30" height="8" fill="#00B4D8" rx="2"/>
+      <!-- Pen nib at top -->
+      <path d="M0,-65 L-8,-45 L8,-45 Z" fill="#9D4EDD"/>
+      <!-- Bulb lines -->
+      <line x1="-15" y1="-35" x2="15" y2="-35" stroke="#C77DFF" stroke-width="2" opacity="0.7"/>
+      <line x1="-12" y1="-25" x2="12" y2="-25" stroke="#C77DFF" stroke-width="2" opacity="0.7"/>
+    </g>
+  </g>
+  
+  <!-- Text "OmniFlow" -->
+  <g transform="translate(265, 60)">
+    <text x="0" y="70" font-family="Inter, sans-serif" font-size="80" font-weight="700">
+      <tspan fill="#00B4D8">Omni</tspan><tspan fill="#9D4EDD">Flow</tspan>
+    </text>
+  </g>
+  
+  <!-- Tagline -->
+  <g transform="translate(265, 140)">
+    <text x="0" y="40" font-family="Inter, sans-serif" font-size="32" font-weight="400">
+      <tspan fill="#00B4D8">Design. Create. </tspan><tspan fill="#9D4EDD">Innovate.</tspan>
+    </text>
+  </g>
+</svg>
